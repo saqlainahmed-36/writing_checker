@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Passage Word Counter — Words, Characters, Readability &amp; More</title>
+<meta name="description" content="A free, private English passage word counter. Count words, characters, sentences and paragraphs, check readability, convert case, clean text and track platform limits — all in your browser.">
+<meta name="theme-color" content="#f3f5fb">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b5bf0'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='43' font-size='30' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EAa%3C/text%3E%3C/svg%3E">
+
+<script>
+/* Apply the saved (or system) theme before first paint so there is no flash. */
+(function () {
+  try {
+    var t = localStorage.getItem('wpc.theme');
+    if (t !== 'dark' && t !== 'light') {
+      t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { /* storage blocked: fall back to the light default */ }
+})();
+</script>
+
+<style>
+/* =====================================================================
+   DESIGN TOKENS (light + dark)
+   ===================================================================== */
+:root{
+  --bg:#f3f5fb;
+  --surface:#ffffff;
+  --surface-2:#f5f7fd;
+  --surface-3:#e9edf8;
+  --border:#e3e7f1;
+  --text:#131a2f;
+  --muted:#667091;
+  --accent:#5b5bf0;
+  --accent-2:#8b5cf6;
+  --accent-rgb:91,91,240;
+  --accent-soft:rgba(91,91,240,.10);
+  --ok:#0fae6b;
+  --warn:#f59e0b;
+  --bad:#ef4444;
+  --hl-adv:#f59e0b;
+  --hl-fill:#ef4444;
+  --hl-pass:#8b5cf6;
+  --glow:.16;
+  --shadow:0 1px 2px rgba(19,26,47,.04),0 10px 30px -12px rgba(19,26,47,.14);
+  --radius:18px;
+  --t:.32s;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0a0d19;
+  --surface:#121729;
+  --surface-2:#192037;
+  --surface-3:#232b46;
+  --border:#252d49;
+  --text:#e9ecf8;
+  --muted:#93a0c2;
+  --accent:#7f86ff;
+  --accent-2:#a78bfa;
+  --accent-rgb:127,134,255;
+  --accent-soft:rgba(127,134,255,.15);
+  --ok:#2dd48a;
+  --warn:#fbbf24;
+  --bad:#f87171;
+  --glow:.30;
+  --shadow:0 1px 2px rgba(0,0,0,.30),0 12px 32px -12px rgba(0,0,0,.60);
+  color-scheme:dark;
+}
+
+/* =====================================================================
+   BASE
+   ===================================================================== */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100vh;
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.5;color:var(--text);background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  transition:background-color var(--t) ease,color var(--t) ease;
+}
+/* soft colour glow behind the page; fades between themes */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:var(--glow);
+  background:
+    radial-gradient(900px 480px at 8% -8%,#6366f1,transparent 62%),
+    radial-gradient(760px 420px at 100% 0%,#a855f7,transparent 60%);
+  transition:opacity var(--t) ease;
+}
+h1,h2,h3,p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+.ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 56px}
+
+/* =====================================================================
+   HEADER + THEME SWITCH
+   ===================================================================== */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{
+  width:44px;height:44px;border-radius:13px;flex:none;display:grid;place-items:center;
+  color:#fff;font-weight:800;font-size:1.05rem;letter-spacing:-.02em;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  box-shadow:0 8px 20px -8px rgba(var(--accent-rgb),.7);
+}
+.brand h1{font-size:clamp(1.1rem,4.4vw,1.5rem);font-weight:800;letter-spacing:-.025em;line-height:1.15}
+.brand p{font-size:.82rem;color:var(--muted);margin-top:2px}
+
+.switch{
+  position:relative;flex:none;width:64px;height:34px;padding:0;cursor:pointer;
+  border-radius:99px;border:1px solid var(--border);background:var(--surface-3);
+  transition:background-color var(--t),border-color var(--t);
+}
+.switch .knob{
+  position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;
+  display:grid;place-items:center;color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  box-shadow:0 2px 6px rgba(0,0,0,.25);
+  transition:transform var(--t) cubic-bezier(.4,.2,.2,1);
+}
+:root[data-theme="dark"] .switch .knob{transform:translateX(30px)}
+.knob .ico{position:absolute;transition:opacity var(--t) ease,transform var(--t) ease}
+.knob .i-moon{opacity:0;transform:rotate(-40deg) scale(.6)}
+:root[data-theme="dark"] .knob .i-moon{opacity:1;transform:none}
+:root[data-theme="dark"] .knob .i-sun{opacity:0;transform:rotate(40deg) scale(.6)}
+
+/* =====================================================================
+   COUNTER TILES
+   ===================================================================== */
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.tile{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:12px 8px;text-align:center;box-shadow:var(--shadow);min-width:0;
+  transition:background-color var(--t),border-color var(--t),box-shadow var(--t);
+}
+.tile-label{display:block;font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.tile-val{
+  display:block;margin-top:4px;font-size:clamp(1.25rem,5vw,1.8rem);font-weight:800;line-height:1.15;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
+}
+.tile-val.sm{font-size:clamp(.92rem,3.5vw,1.15rem);letter-spacing:-.01em;padding-top:4px}
+.tile-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+.tile-primary .tile-label{color:rgba(255,255,255,.82)}
+.bump{animation:bump .28s ease}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.09)}100%{transform:scale(1)}}
+
+/* =====================================================================
+   LAYOUT + CARDS
+   ===================================================================== */
+.layout{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.col{display:grid;gap:16px;min-width:0;align-content:start}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
+  transition:background-color var(--t),border-color var(--t),box-shadow var(--t);
+}
+.card-body{padding:18px}
+.card-title{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:.95rem;font-weight:800;letter-spacing:-.01em}
+.card-title .ico{color:var(--accent)}
+.card-title small{margin-left:auto;font-weight:600;font-size:.75rem;color:var(--muted)}
+.muted{color:var(--muted)}
+
+/* =====================================================================
+   EDITOR + TOOLBAR
+   ===================================================================== */
+.editor-card:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft),var(--shadow)}
+.toolbar{display:flex;flex-wrap:wrap;gap:14px 22px;padding:14px 16px 12px;border-bottom:1px solid var(--border);transition:border-color var(--t)}
+.group{display:flex;flex-direction:column;gap:6px;min-width:0}
+.group-label{font-size:.66rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 12px;font-size:.84rem;font-weight:650;line-height:1.1;white-space:nowrap;cursor:pointer;
+  color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+  transition:background-color var(--t),border-color var(--t),color var(--t),transform .12s ease,box-shadow .2s ease;
+}
+.btn:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 6px 14px -8px rgba(var(--accent-rgb),.55)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;border-color:var(--border)}
+.btn-primary{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+.btn-primary:hover{border-color:transparent;filter:brightness(1.07)}
+.btn.is-live{color:#fff;border-color:transparent;background:linear-gradient(135deg,#ef4444,#f97316)}
+.btn-ghost{background:transparent}
+
+.input,.select{
+  height:35px;padding:0 10px;font-size:.84rem;font-weight:600;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+  transition:background-color var(--t),border-color var(--t),color var(--t);
+}
+.select{max-width:170px;text-overflow:ellipsis;cursor:pointer}
+.input:hover,.select:hover{border-color:var(--accent)}
+
+.hint{padding:9px 16px 0;font-size:.78rem;color:var(--muted)}
+
+.editor{
+  display:block;width:100%;min-height:300px;max-height:72vh;resize:vertical;
+  padding:16px 18px;border:0;outline:none;background:transparent;color:var(--text);
+  font-size:1rem;line-height:1.75;
+}
+.editor::placeholder{color:var(--muted);opacity:.7}
+.editor-foot{
+  display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 14px;
+  padding:10px 16px;border-top:1px solid var(--border);font-size:.78rem;color:var(--muted);
+  transition:border-color var(--t);
+}
+.saved{display:inline-flex;align-items:center;gap:6px}
+.saved::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.saved.off::before{background:var(--warn)}
+
+/* =====================================================================
+   PROGRESS BARS (goal + platforms)
+   ===================================================================== */
+.progress{height:12px;border-radius:99px;background:var(--surface-3);overflow:hidden;transition:background-color var(--t)}
+.progress.thin{height:7px}
+.fill{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .45s cubic-bezier(.3,.7,.2,1),background .3s ease}
+.fill.done{background:linear-gradient(90deg,#10b981,#34d399)}
+.fill.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.fill.over{background:linear-gradient(90deg,#ef4444,#f97316)}
+
+.goal-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.goal-row .input{width:110px;font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);transition:background-color var(--t),border-color var(--t)}
+.seg button{border:0;background:transparent;color:var(--muted);font-size:.8rem;font-weight:700;padding:6px 11px;border-radius:8px;cursor:pointer;transition:background-color .2s,color .2s}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip-btn{border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:99px;cursor:pointer;transition:all .2s}
+.chip-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.goal-meta{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:.84rem}
+.goal-meta strong{font-variant-numeric:tabular-nums}
+
+/* platform limit badges */
+.plat-list{display:grid;gap:12px}
+.plat{padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);transition:background-color var(--t),border-color var(--t)}
+.plat-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.plat-ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:.72rem;font-weight:800;color:#fff;flex:none}
+.plat[data-id="x"] .plat-ico{background:#111827}
+:root[data-theme="dark"] .plat[data-id="x"] .plat-ico{background:#e5e7eb;color:#111827}
+.plat[data-id="ig"] .plat-ico{background:linear-gradient(135deg,#f58529,#dd2a7b 55%,#8134af)}
+.plat[data-id="li"] .plat-ico{background:#0a66c2}
+.plat-name{font-weight:700;font-size:.9rem;line-height:1.2}
+.plat-name small{display:block;font-weight:500;font-size:.72rem;color:var(--muted)}
+.badge{
+  margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:99px;
+  font-size:.7rem;font-weight:800;letter-spacing:.02em;white-space:nowrap;
+  color:var(--ok);background:rgba(16,174,107,.12);transition:all .3s ease;
+}
+.badge .ico{width:12px;height:12px;stroke-width:3}
+.plat.warn .badge{color:var(--warn);background:rgba(245,158,11,.14)}
+.plat.over .badge{color:var(--bad);background:rgba(239,68,68,.13)}
+.plat-meta{display:flex;justify-content:space-between;margin-top:7px;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.plat.over .plat-meta span:last-child{color:var(--bad);font-weight:700}
+
+/* =====================================================================
+   READABILITY
+   ===================================================================== */
+.read-hero{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.score{
+  flex:none;width:92px;height:92px;border-radius:50%;display:grid;place-content:center;text-align:center;
+  background:conic-gradient(var(--accent) calc(var(--p,0)*1%),var(--surface-3) 0);
+  position:relative;transition:background-color var(--t);
+}
+.score::before{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--surface);transition:background-color var(--t)}
+.score b,.score small{position:relative}
+.score b{font-size:1.5rem;font-weight:800;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.score small{font-size:.58rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.read-desc strong{display:block;font-size:1.02rem}
+.read-desc span{font-size:.82rem;color:var(--muted)}
+.gauge{position:relative;height:8px;border-radius:99px;margin:4px 0 18px;background:linear-gradient(90deg,#ef4444,#f59e0b 35%,#eab308 55%,#22c55e 85%,#10b981)}
+.gauge i{position:absolute;top:50%;left:0;width:16px;height:16px;border-radius:50%;background:var(--surface);border:3px solid var(--text);transform:translate(-50%,-50%);transition:left .45s cubic-bezier(.3,.7,.2,1),background-color var(--t),border-color var(--t)}
+.gauge-scale{display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin:-12px 0 14px}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);min-width:0;transition:background-color var(--t),border-color var(--t)}
+.m-label{display:block;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.m-val{display:block;margin-top:2px;font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-sub{display:block;font-size:.72rem;color:var(--muted)}
+
+/* =====================================================================
+   KEYWORD CLOUD
+   ===================================================================== */
+.cloud{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kw{
+  display:inline-flex;align-items:baseline;gap:6px;padding:4px 11px;border-radius:99px;font-weight:700;line-height:1.35;
+  color:var(--text);background:rgba(var(--accent-rgb),calc(.07 + var(--w,0)*.16));
+  border:1px solid rgba(var(--accent-rgb),calc(.10 + var(--w,0)*.25));
+  transition:background-color var(--t),border-color var(--t),color var(--t);
+}
+.kw b{font-size:.68rem;font-weight:800;color:var(--accent)}
+.empty{font-size:.86rem;color:var(--muted)}
+
+/* =====================================================================
+   WRITING DIAGNOSTICS
+   ===================================================================== */
+.diag{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:12px}
+.diag-card{padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);min-width:0;transition:background-color var(--t),border-color var(--t)}
+.diag-head{display:flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:3px;flex:none}
+.dot.adv{background:var(--hl-adv)}.dot.fill{background:var(--hl-fill)}.dot.pass{background:var(--hl-pass)}
+.diag-num{display:block;margin:4px 0 8px;font-size:1.6rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:5px;min-height:22px}
+.chip{padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:650;background:var(--surface);border:1px solid var(--border);color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:background-color var(--t),border-color var(--t)}
+.chip em{font-style:normal;color:var(--muted);margin-left:3px}
+.tips{margin:0 0 12px;padding:10px 12px;border-radius:12px;font-size:.84rem;background:var(--accent-soft);color:var(--text)}
+.tips p+p{margin-top:4px}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:.84rem;font-weight:650;cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--accent);width:16px;height:16px}
+.preview-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.74rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.preview{
+  max-height:300px;overflow:auto;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);
+  font-size:.95rem;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;transition:background-color var(--t),border-color var(--t);
+}
+mark.hl{color:inherit;padding:1px 2px;border-radius:4px}
+mark.hl-adv{background:rgba(245,158,11,.25);box-shadow:inset 0 -2px 0 var(--hl-adv)}
+mark.hl-fill{background:rgba(239,68,68,.20);box-shadow:inset 0 -2px 0 var(--hl-fill)}
+mark.hl-pass{background:rgba(139,92,246,.22);box-shadow:inset 0 -2px 0 var(--hl-pass)}
+
+/* =====================================================================
+   TOAST + FOOTER
+   ===================================================================== */
+.toast{
+  position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));z-index:50;max-width:min(92vw,420px);
+  padding:10px 16px;border-radius:12px;font-size:.86rem;font-weight:650;color:#fff;background:#1c2340;
+  box-shadow:0 12px 32px -8px rgba(0,0,0,.5);opacity:0;pointer-events:none;
+  transform:translate(-50%,16px);transition:opacity .25s ease,transform .25s ease;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.foot{margin-top:28px;text-align:center;font-size:.8rem;color:var(--muted)}
+.foot p+p{margin-top:4px}
+
+/* =====================================================================
+   RESPONSIVE
+   ===================================================================== */
+@media (min-width:640px){
+  .stats{gap:12px}
+  .tile{padding:14px 10px}
+}
+@media (min-width:900px){
+  .stats{grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+}
+@media (min-width:980px){
+  .layout{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .toolbar{gap:12px 14px;padding:12px}
+  .btn{padding:8px 10px}
+  .editor{min-height:240px;padding:14px}
+  .card-body{padding:14px}
+  .score{width:80px;height:80px}
+  .score b{font-size:1.3rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+
+<body>
+
+<!-- Inline icon sprite (no external assets) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+  </defs>
+</svg>
+
+<noscript><p style="padding:24px;text-align:center">This word counter needs JavaScript enabled. Everything runs locally in your browser.</p></noscript>
+
+<div class="wrap">
+
+  <!-- ============================ HEADER ============================ -->
+  <header class="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">Aa</div>
+      <div>
+        <h1>Passage Word Counter</h1>
+        <p>Private, instant &amp; 100% in your browser.</p>
+      </div>
+    </div>
+    <button class="switch" id="theme-switch" role="switch" aria-checked="false" aria-label="Dark mode" title="Toggle dark mode">
+      <span class="knob">
+        <svg class="ico i-sun"><use href="#i-sun"/></svg>
+        <svg class="ico i-moon"><use href="#i-moon"/></svg>
+      </span>
+    </button>
+  </header>
+
+  <!-- ============================ LIVE COUNTERS ============================ -->
+  <section class="stats" aria-label="Live counters">
+    <div class="tile tile-primary"><span class="tile-label">Words</span><span class="tile-val" id="st-words">0</span></div>
+    <div class="tile"><span class="tile-label">Characters</span><span class="tile-val" id="st-chars">0</span></div>
+    <div class="tile"><span class="tile-label">No spaces</span><span class="tile-val" id="st-nospace">0</span></div>
+    <div class="tile"><span class="tile-label">Sentences</span><span class="tile-val" id="st-sent">0</span></div>
+    <div class="tile"><span class="tile-label">Paragraphs</span><span class="tile-val" id="st-para">0</span></div>
+    <div class="tile"><span class="tile-label">Reading time</span><span class="tile-val sm" id="st-read">0 sec</span></div>
+  </section>
+
+  <div class="layout">
+
+    <!-- ============================ LEFT: EDITOR + DIAGNOSTICS ============================ -->
+    <div class="col">
+
+      <section class="card editor-card" aria-label="Text editor">
+        <div class="toolbar">
+          <div class="group">
+            <span class="group-label">Case</span>
+            <div class="btns">
+              <button class="btn" id="b-upper" type="button">UPPERCASE</button>
+              <button class="btn" id="b-lower" type="button">lowercase</button>
+              <button class="btn" id="b-title" type="button">Title Case</button>
+              <button class="btn" id="b-sentence" type="button">Sentence case</button>
+            </div>
+          </div>
+          <div class="group">
+            <span class="group-label">Clean up</span>
+            <div class="btns">
+              <button class="btn" id="b-clean" type="button">Clean extra spaces</button>
+              <button class="btn" id="b-flatten" type="button">Flatten to one paragraph</button>
+            </div>
+          </div>
+          <div class="group">
+            <span class="group-label">Read aloud</span>
+            <div class="btns">
+              <button class="btn btn-primary" id="b-listen" type="button"><svg class="ico"><use href="#i-volume"/></svg><span>Listen</span></button>
+              <select class="select" id="sel-rate" aria-label="Speech speed">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+              </select>
+              <select class="select" id="sel-voice" aria-label="Voice" hidden></select>
+            </div>
+          </div>
+          <div class="group">
+            <span class="group-label">Document</span>
+            <div class="btns">
+              <button class="btn" id="b-undo" type="button" disabled><svg class="ico"><use href="#i-undo"/></svg>Undo</button>
+              <button class="btn" id="b-copy" type="button"><svg class="ico"><use href="#i-copy"/></svg>Copy</button>
+              <button class="btn" id="b-clear" type="button"><svg class="ico"><use href="#i-trash"/></svg>Clear</button>
+              <button class="btn" id="b-sample" type="button"><svg class="ico"><use href="#i-file"/></svg>Sample</button>
+              <button class="btn btn-primary" id="b-export" type="button"><svg class="ico"><use href="#i-download"/></svg>Export report</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint">Tip: select part of your text first and the case &amp; clean-up tools will change only that part.</p>
+
+        <label for="editor" class="sr-only">Your passage</label>
+        <textarea class="editor" id="editor" spellcheck="true" autocomplete="off" autocapitalize="sentences"
+                  placeholder="Paste or type your passage here… Everything is counted live as you write."></textarea>
+
+        <div class="editor-foot">
+          <span class="saved" id="save-status" role="status">Auto-save is on</span>
+          <span id="foot-summary">0 words · 0 characters</span>
+        </div>
+      </section>
+
+      <!-- Writing diagnostics -->
+      <section class="card" aria-label="Writing diagnostics">
+        <div class="card-body">
+          <h2 class="card-title"><svg class="ico"><use href="#i-search"/></svg>Writing diagnostics <small>rule-based</small></h2>
+
+          <div class="diag">
+            <div class="diag-card">
+              <div class="diag-head"><span class="dot adv"></span>“-ly” adverbs</div>
+              <span class="diag-num" id="dg-adv">0</span>
+              <div class="chips" id="dg-adv-chips"></div>
+            </div>
+            <div class="diag-card">
+              <div class="diag-head"><span class="dot fill"></span>Filler words &amp; phrases</div>
+              <span class="diag-num" id="dg-fill">0</span>
+              <div class="chips" id="dg-fill-chips"></div>
+            </div>
+            <div class="diag-card">
+              <div class="diag-head"><span class="dot pass"></span>Passive voice</div>
+              <span class="diag-num" id="dg-pass">0</span>
+              <div class="chips" id="dg-pass-chips"></div>
+            </div>
+          </div>
+
+          <div class="tips" id="dg-tips"></div>
+
+          <div class="preview-head">
+            <label class="toggle"><input type="checkbox" id="preview-toggle" checked> Highlighted preview</label>
+            <div class="legend">
+              <span><i class="dot adv"></i>adverb</span>
+              <span><i class="dot fill"></i>filler</span>
+              <span><i class="dot pass"></i>passive</span>
+            </div>
+          </div>
+          <div class="preview" id="preview" aria-label="Highlighted preview of your text"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ RIGHT: GOALS, LIMITS, ANALYTICS ============================ -->
+    <aside class="col">
+
+      <!-- Goal -->
+      <section class="card" aria-label="Writing goal">
+        <div class="card-body">
+          <h2 class="card-title"><svg class="ico"><use href="#i-target"/></svg>Writing goal</h2>
+          <div class="goal-row">
+            <label class="sr-only" for="goal-target">Target amount</label>
+            <input class="input" id="goal-target" type="number" min="1" max="10000000" step="1" inputmode="numeric" value="500">
+            <div class="seg" role="group" aria-label="Goal unit">
+              <button type="button" data-unit="words" aria-pressed="true">Words</button>
+              <button type="button" data-unit="chars" aria-pressed="false">Characters</button>
+            </div>
+          </div>
+          <div class="chip-row" id="goal-presets"></div>
+          <div class="progress" id="goal-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Goal progress">
+            <div class="fill" id="goal-fill"></div>
+          </div>
+          <div class="goal-meta"><strong id="goal-pct">0%</strong><span class="muted" id="goal-note"></span></div>
+        </div>
+      </section>
+
+      <!-- Platform limits -->
+      <section class="card" aria-label="Platform limits">
+        <div class="card-body">
+          <h2 class="card-title"><svg class="ico"><use href="#i-share"/></svg>Platform limits <small>characters</small></h2>
+          <div class="plat-list" id="plat-list"></div>
+        </div>
+      </section>
+
+      <!-- Readability -->
+      <section class="card" aria-label="Readability">
+        <div class="card-body">
+          <h2 class="card-title"><svg class="ico"><use href="#i-book"/></svg>Readability</h2>
+          <div class="read-hero">
+            <div class="score" id="fk-ring" style="--p:0"><b id="fk-ease">—</b><small>Reading ease</small></div>
+            <div class="read-desc">
+              <strong id="fk-label">Not enough text yet</strong>
+              <span id="fk-audience">Write at least one sentence to see your Flesch scores.</span>
+            </div>
+          </div>
+          <div class="gauge"><i id="fk-marker"></i></div>
+          <div class="gauge-scale"><span>Hard</span><span>Standard</span><span>Easy</span></div>
+          <div class="metrics">
+            <div class="metric"><span class="m-label">Grade level</span><span class="m-val" id="rd-grade">—</span><span class="m-sub">Flesch–Kincaid</span></div>
+            <div class="metric"><span class="m-label">Avg word length</span><span class="m-val" id="rd-avgword">—</span><span class="m-sub">letters per word</span></div>
+            <div class="metric"><span class="m-label">Longest word</span><span class="m-val" id="rd-longest">—</span><span class="m-sub" id="rd-longest-n">&nbsp;</span></div>
+            <div class="metric"><span class="m-label">Syllables</span><span class="m-val" id="rd-syll">—</span><span class="m-sub">estimated total</span></div>
+            <div class="metric"><span class="m-label">Words / sentence</span><span class="m-val" id="rd-wps">—</span><span class="m-sub">average</span></div>
+            <div class="metric"><span class="m-label">Syllables / word</span><span class="m-val" id="rd-spw">—</span><span class="m-sub">average</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keywords -->
+      <section class="card" aria-label="Top keywords">
+        <div class="card-body">
+          <h2 class="card-title"><svg class="ico"><use href="#i-tag"/></svg>Top keywords <small>stop words ignored</small></h2>
+          <div class="cloud" id="cloud"></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <footer class="foot">
+    <p>Your text never leaves this device — there is no server and no tracking. Drafts are auto-saved in your browser’s local storage.</p>
+    <p>Reading time assumes ~200 words per minute. Syllable counts and diagnostics use rule-based estimates.</p>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =====================================================================
+     SMALL HELPERS
+     ===================================================================== */
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var nf = new Intl.NumberFormat('en-US');
+  var fmt = function (n) { return nf.format(n); };
+  var esc = function (s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  var plural = function (n, one, many) { return n === 1 ? one : (many || one + 's'); };
+
+  /* Safe wrapper around localStorage (it can be blocked in private modes). */
+  var store = {
+    ok: true,
+    get: function (k, d) {
+      try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; }
+    },
+    set: function (k, v) {
+      try { localStorage.setItem(k, v); return true; } catch (e) { store.ok = false; return false; }
+    }
+  };
+  var KEYS = {
+    text: 'wpc.text', theme: 'wpc.theme', goal: 'wpc.goal', unit: 'wpc.goalUnit',
+    rate: 'wpc.rate', voice: 'wpc.voice', preview: 'wpc.preview'
+  };
+
+  /* =====================================================================
+     CONSTANTS
+     ===================================================================== */
+  var WPM = 200; // reading speed used for the time estimate
+
+  /* A "word" = letters/digits, optionally joined by ' or - (e.g. don't, well-known)
+     or by a decimal/thousands separator between digits (e.g. 3.14, 1,000). */
+  var WORD_RE = /[\p{L}\p{N}]+(?:(?:['’\-]|[.,](?=\p{N}))[\p{L}\p{N}]+)*/gu;
+
+  var PLATFORMS = [
+    { id: 'x',  icon: 'X',  name: 'X (Twitter)', limit: 280 },
+    { id: 'ig', icon: 'IG', name: 'Instagram',   limit: 2200 },
+    { id: 'li', icon: 'in', name: 'LinkedIn',    limit: 3000 }
+  ];
+
+  var GOAL_PRESETS = { words: [100, 250, 500, 1000, 2000], chars: [280, 500, 1000, 2200, 3000] };
+
+  var SAMPLE = 'The quick brown fox jumped over the lazy dog. It was really quite surprising how quickly the story was told by the villagers. Honestly, nobody had actually expected the fox to be seen again, but it was basically everywhere that summer.\n\n' +
+    'Writing clearly is simply a matter of choosing plain words and trimming the extra ones. In order to improve a draft, you should read it aloud, notice where you stumble, and cut whatever the reader does not need.\n\n' +
+    'Short sentences help. Long, winding sentences that wander through many clauses and ideas before they finally reach a full stop can exhaust even the most patient reader.';
+
+  /* Common English stop words (ignored in the keyword cloud). */
+  var STOP = new Set(("a about above after again against all also am an and any are aren't as at be because been before being below between both but by can can't cannot could couldn't " +
+    "did didn't do does doesn't doing don't down during each even ever every few for from further get gets got had hadn't has hasn't have haven't having he he'd he'll he's her here here's hers herself " +
+    "him himself his how how's i i'd i'll i'm i've if in into is isn't it it's its itself just let's like many may me might more most much must mustn't my myself never no nor not of off often on once " +
+    "one only or other ought our ours ourselves out over own same shall shan't she she'd she'll she's should shouldn't so some such than that that's the their theirs them themselves then there there's " +
+    "these they they'd they'll they're they've this those through to too under until up us very was wasn't we we'd we'll we're we've were weren't what what's when when's where where's which while who who's " +
+    "whom whose why why's will with won't would wouldn't yet you you'd you'll you're you've your yours yourself yourselves said say says really quite").split(/\s+/));
+
+  /* ---- Diagnostics vocabularies ---- */
+  /* Words ending in -ly that are NOT (usually) adverbs. */
+  var ADV_SKIP = new Set(('family early july apply reply supply multiply rely ally bully belly jelly holy ugly silly lonely lovely friendly lively likely unlikely assembly anomaly italy ' +
+    'monopoly butterfly rally tally folly jolly lily chilly hilly curly surly gnarly orderly elderly costly deadly daily weekly monthly yearly quarterly hourly nightly timely homely cowardly manly ' +
+    'womanly motherly fatherly brotherly sisterly lowly wobbly bubbly sparkly prickly grizzly melancholy gully sully imply comply reply underlying overly').split(' '));
+
+  var FILLERS = ['very', 'really', 'just', 'actually', 'basically', 'literally', 'totally', 'simply', 'quite', 'rather', 'somewhat', 'somehow',
+    'perhaps', 'maybe', 'definitely', 'absolutely', 'honestly', 'essentially', 'virtually', 'probably', 'obviously', 'clearly', 'certainly',
+    'seriously', 'kind of', 'sort of', 'a lot', 'a bit', 'in order to', 'i think', 'i believe', 'i guess', 'you know', 'i mean',
+    'at the end of the day', 'needless to say', 'it goes without saying', 'as a matter of fact', 'due to the fact that', 'in my opinion',
+    'to be honest', 'the fact that', 'at this point in time', 'each and every'];
+  var FILLER_SINGLE = new Set(FILLERS.filter(function (f) { return !/\s/.test(f); }));
+  var FILLER_RE = new RegExp('\\b(?:' + FILLERS.slice()
+    .sort(function (a, b) { return b.length - a.length; })
+    .map(function (f) { return f.replace(/\s+/g, '\\s+'); })
+    .join('|') + ')\\b', 'gi');
+
+  var PARTICIPLES = ('known made done seen given taken written built found held kept left lost paid sent shown told thought brought bought caught taught sold won run put cut hit hurt ' +
+    'understood chosen driven eaten fallen forgotten hidden spoken stolen thrown worn begun broken drawn flown grown torn sung sunk shot struck met read said heard felt meant spent born ' +
+    'beaten bitten blown bound dealt dug frozen hung laid lit proven ridden risen shaken').split(' ');
+  var ED_SKIP = new Set(['need', 'speed', 'feed', 'seed', 'weed', 'bleed', 'breed', 'indeed', 'proceed', 'succeed', 'exceed', 'hundred', 'sacred', 'naked', 'wicked', 'kindred', 'hatred', 'shed', 'sled', 'bred', 'embed']);
+  var PASSIVE_RE = new RegExp('\\b(?:am|is|are|was|were|be|been|being)\\s+(?:not\\s+)?([a-z]{2,}ed|' + PARTICIPLES.join('|') + ')\\b', 'gi');
+  var ADVERB_RE = /\b[a-z]{3,}ly\b/gi;
+
+  var MINOR = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'on', 'per', 'to', 'up', 'via', 'vs', 'from', 'with', 'into', 'onto', 'over']);
+
+  /* =====================================================================
+     TEXT ANALYSIS (pure functions)
+     ===================================================================== */
+
+  /* Count sentences. Terminators must be followed by whitespace/end so that
+     "3.14" or "example.com" don't split; common abbreviations are protected. */
+  function countSentences(text) {
+    var clean = text.replace(/\s+/g, ' ').trim();
+    if (!clean) return 0;
+    clean = clean
+      .replace(/\b(?:e\.g|i\.e)\./gi, function (m) { return m.replace(/\./g, '\u0001'); })
+      .replace(/\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|Inc|Ltd)\./g, function (m) { return m.replace('.', '\u0001'); });
+    var parts = clean.match(/.+?(?:[.!?…]+["'”’)\]]*(?=\s|$)|$)/g) || [];
+    return parts.filter(function (p) { return /[\p{L}\p{N}]/u.test(p); }).length;
+  }
+
+  /* Heuristic English syllable counter (hyphenated words are counted per part). */
+  function syllablesOfPart(p) {
+    p = p.replace(/[^a-z]/g, '');
+    if (!p) return 1;                // numbers / non-Latin tokens count as one beat
+    if (p.length <= 3) return 1;
+    p = p.replace(/(?:[^laeiouy]es|[^tdaeiou]ed|[^laeiouy]e)$/, '').replace(/^y/, '');
+    var m = p.match(/[aeiouy]{1,2}/g);
+    return m ? Math.max(1, m.length) : 1;
+  }
+  function countSyllables(word) {
+    return word.toLowerCase().split('-').reduce(function (n, part) { return n + syllablesOfPart(part); }, 0) || 1;
+  }
+
+  function analyze(text) {
+    var words = text.match(WORD_RE) || [];
+    var wordCount = words.length;
+    var sentenceCount = countSentences(text);
+    var paragraphCount = text.split(/\r?\n/).filter(function (l) { return /[\p{L}\p{N}]/u.test(l); }).length;
+    var charsWith = Array.from(text).length;
+    var charsNo = Array.from(text.replace(/\s/g, '')).length;
+
+    var letters = 0, syll = 0, longest = '', longestLen = 0;
+    var freq = new Map();
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      var len = w.replace(/[^\p{L}\p{N}]/gu, '').length;
+      letters += len;
+      if (len > longestLen) { longestLen = len; longest = w; }
+      syll += countSyllables(w);
+
+      var k = w.toLowerCase().replace(/’/g, "'").replace(/'s$/, '');
+      if (k.length >= 3 && !STOP.has(k) && !/^[\d.,]+$/.test(k)) freq.set(k, (freq.get(k) || 0) + 1);
+    }
+
+    var readSecs = Math.round(wordCount / WPM * 60);
+    var ease = null, grade = null, wps = 0, spw = 0;
+    if (wordCount > 0 && sentenceCount > 0) {
+      wps = wordCount / sentenceCount;
+      spw = syll / wordCount;
+      ease = 206.835 - 1.015 * wps - 84.6 * spw;           // Flesch Reading Ease
+      grade = 0.39 * wps + 11.8 * spw - 15.59;              // Flesch–Kincaid Grade Level
+    }
+
+    var keywords = Array.from(freq.entries())
+      .sort(function (a, b) { return b[1] - a[1] || (a[0] < b[0] ? -1 : 1); })
+      .slice(0, 20);
+
+    return {
+      words: wordCount, charsWith: charsWith, charsNo: charsNo,
+      sentences: sentenceCount, paragraphs: paragraphCount, readSecs: readSecs,
+      avgWord: wordCount ? letters / wordCount : 0, longest: longest, longestLen: longestLen,
+      syllables: syll, wps: wps, spw: spw, ease: ease, grade: grade, keywords: keywords
+    };
+  }
+
+  /* Find -ly adverbs, filler words/phrases and passive-voice constructions. */
+  function diagnose(text) {
+    var out = { adverbs: [], fillers: [], passive: [] }, m;
+
+    FILLER_RE.lastIndex = 0;
+    while ((m = FILLER_RE.exec(text)) !== null) {
+      out.fillers.push({ start: m.index, end: m.index + m[0].length, text: m[0], type: 'fill' });
+      if (m[0].length === 0) FILLER_RE.lastIndex++;
+    }
+    ADVERB_RE.lastIndex = 0;
+    while ((m = ADVERB_RE.exec(text)) !== null) {
+      var lw = m[0].toLowerCase();
+      if (ADV_SKIP.has(lw) || FILLER_SINGLE.has(lw)) continue;
+      out.adverbs.push({ start: m.index, end: m.index + m[0].length, text: m[0], type: 'adv' });
+    }
+    PASSIVE_RE.lastIndex = 0;
+    while ((m = PASSIVE_RE.exec(text)) !== null) {
+      if (ED_SKIP.has(m[1].toLowerCase())) continue;
+      out.passive.push({ start: m.index, end: m.index + m[0].length, text: m[0], type: 'pass' });
+    }
+    return out;
+  }
+
+  /* =====================================================================
+     TEXT TRANSFORMS
+     ===================================================================== */
+  function toTitleCase(t) {
+    return t.split('\n').map(function (line) {
+      var first = true;
+      return line.toLowerCase().replace(/[\p{L}\p{N}][\p{L}\p{N}'’]*/gu, function (w) {
+        var isFirst = first; first = false;
+        if (!isFirst && MINOR.has(w)) return w;
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      });
+    }).join('\n');
+  }
+  function toSentenceCase(t) {
+    return t.toLowerCase()
+      .replace(/(^\s*|[.!?…]["'”’)\]]*\s+|\n\s*)(\p{L})/gu, function (m, pre, ch) { return pre + ch.toUpperCase(); })
+      .replace(/\bi\b(?!\.)/g, 'I');
+  }
+  function cleanSpaces(t) {
+    return t.replace(/\r\n?/g, '\n')
+      .replace(/[ \t\u00A0]+/g, ' ')
+      .replace(/ *\n */g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/ +([,.;:!?])/g, '$1')
+      .trim();
+  }
+  function flatten(t) {
+    return t.replace(/\s*[\r\n]+\s*/g, ' ').replace(/[ \t\u00A0]+/g, ' ').trim();
+  }
+
+  /* =====================================================================
+     DOM REFERENCES + STATE
+     ===================================================================== */
+  var ta = $('#editor');
+  var els = {
+    words: $('#st-words'), chars: $('#st-chars'), nospace: $('#st-nospace'),
+    sent: $('#st-sent'), para: $('#st-para'), read: $('#st-read'),
+    footSummary: $('#foot-summary'), saveStatus: $('#save-status')
+  };
+  var state = { unit: 'words', target: 500, preview: true };
+  var metrics = null, diag = null;
+  var history = [];
+
+  /* =====================================================================
+     UI UTILITIES
+     ===================================================================== */
+  var toastTimer;
+  function toast(msg) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+  function setText(node, value, bump) {
+    var v = String(value);
+    if (node.textContent === v) return;
+    node.textContent = v;
+    if (bump) { node.classList.remove('bump'); void node.offsetWidth; node.classList.add('bump'); }
+  }
+  function formatDuration(secs) {
+    if (secs <= 0) return '0 sec';
+    if (secs < 60) return secs + ' sec';
+    var m = Math.floor(secs / 60), s = secs % 60;
+    return m + ' min' + (s ? ' ' + s + ' sec' : '');
+  }
+
+  /* =====================================================================
+     RENDERERS
+     ===================================================================== */
+  function renderStats(m) {
+    setText(els.words, fmt(m.words), true);
+    setText(els.chars, fmt(m.charsWith), true);
+    setText(els.nospace, fmt(m.charsNo), true);
+    setText(els.sent, fmt(m.sentences), true);
+    setText(els.para, fmt(m.paragraphs), true);
+    setText(els.read, formatDuration(m.readSecs));
+    els.footSummary.textContent = fmt(m.words) + ' ' + plural(m.words, 'word') + ' · ' + fmt(m.charsWith) + ' ' + plural(m.charsWith, 'character');
+  }
+
+  /* ---- Goal ---- */
+  function renderGoalPresets() {
+    var box = $('#goal-presets');
+    box.innerHTML = '';
+    GOAL_PRESETS[state.unit].forEach(function (n) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip-btn'; b.textContent = fmt(n);
+      b.addEventListener('click', function () { setGoal(n); });
+      box.appendChild(b);
+    });
+  }
+  function setGoal(n) {
+    state.target = n;
+    $('#goal-target').value = n;
+    store.set(KEYS.goal, String(n));
+    if (metrics) renderGoal(metrics);
+  }
+  function renderGoal(m) {
+    var current = state.unit === 'words' ? m.words : m.charsWith;
+    var unitLabel = state.unit === 'words' ? 'words' : 'characters';
+    var target = Math.max(1, state.target);
+    var ratio = current / target;
+    var pct = Math.floor(ratio * 100);
+    var fill = $('#goal-fill');
+    fill.style.width = Math.min(100, ratio * 100) + '%';
+    fill.className = 'fill' + (ratio >= 1 ? ' done' : '');
+    var bar = $('#goal-bar');
+    bar.setAttribute('aria-valuenow', String(Math.min(100, pct)));
+    setText($('#goal-pct'), pct + '%');
+    var note;
+    if (current < target) note = fmt(current) + ' / ' + fmt(target) + ' · ' + fmt(target - current) + ' to go';
+    else if (current === target) note = 'Goal reached! 🎉';
+    else note = 'Goal reached · ' + fmt(current - target) + ' over';
+    setText($('#goal-note'), note);
+    bar.title = unitLabel;
+  }
+
+  /* ---- Platform badges ---- */
+  function buildPlatforms() {
+    var list = $('#plat-list');
+    list.innerHTML = '';
+    PLATFORMS.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'plat'; d.setAttribute('data-id', p.id);
+      d.innerHTML =
+        '<div class="plat-head"><span class="plat-ico" aria-hidden="true">' + p.icon + '</span>' +
+        '<span class="plat-name">' + esc(p.name) + '<small>' + fmt(p.limit) + ' character limit</small></span>' +
+        '<span class="badge"><svg class="ico"><use href="#i-check"/></svg><b>Within limit</b></span></div>' +
+        '<div class="progress thin"><div class="fill"></div></div>' +
+        '<div class="plat-meta"><span class="p-used">0 / ' + fmt(p.limit) + '</span><span class="p-left">' + fmt(p.limit) + ' left</span></div>';
+      list.appendChild(d);
+    });
+  }
+  function renderPlatforms(m) {
+    PLATFORMS.forEach(function (p) {
+      var node = $('.plat[data-id="' + p.id + '"]');
+      var ratio = m.charsWith / p.limit;
+      var status = ratio > 1 ? 'over' : (ratio >= 0.9 ? 'warn' : 'ok');
+      node.className = 'plat' + (status === 'ok' ? '' : ' ' + status);
+      var fill = $('.fill', node);
+      fill.style.width = Math.min(100, ratio * 100) + '%';
+      fill.className = 'fill' + (status === 'ok' ? '' : ' ' + status);
+      $('.p-used', node).textContent = fmt(m.charsWith) + ' / ' + fmt(p.limit);
+      $('.p-left', node).textContent = status === 'over'
+        ? fmt(m.charsWith - p.limit) + ' over'
+        : fmt(p.limit - m.charsWith) + ' left';
+      $('.badge b', node).textContent = status === 'over' ? 'Over limit' : (status === 'warn' ? 'Almost full' : 'Within limit');
+      $('.badge use', node).setAttribute('href', status === 'over' ? '#i-x' : '#i-check');
+    });
+  }
+
+  /* ---- Readability ---- */
+  function easeInfo(s) {
+    if (s >= 90) return ['Very easy', 'Easily understood by an average 11-year-old (≈ 5th grade).'];
+    if (s >= 80) return ['Easy', 'Conversational English (≈ 6th grade).'];
+    if (s >= 70) return ['Fairly easy', 'Comfortable for most readers (≈ 7th grade).'];
+    if (s >= 60) return ['Plain English', 'Easily understood by 13–15 year-olds (≈ 8th–9th grade).'];
+    if (s >= 50) return ['Fairly difficult', 'Best suited to high-school level readers (≈ 10th–12th grade).'];
+    if (s >= 30) return ['Difficult', 'College-level reading.'];
+    return ['Very difficult', 'Best understood by university graduates.'];
+  }
+  function renderReadability(m) {
+    var has = m.ease !== null;
+    var dash = '—';
+    if (!has) {
+      setText($('#fk-ease'), dash);
+      setText($('#fk-label'), 'Not enough text yet');
+      setText($('#fk-audience'), 'Write at least one sentence to see your Flesch scores.');
+      $('#fk-ring').style.setProperty('--p', 0);
+      $('#fk-marker').style.left = '0%';
+    } else {
+      var info = easeInfo(m.ease);
+      setText($('#fk-ease'), (Math.round(m.ease * 10) / 10).toString());
+      setText($('#fk-label'), info[0]);
+      setText($('#fk-audience'), info[1]);
+      var clamped = Math.max(0, Math.min(100, m.ease));
+      $('#fk-ring').style.setProperty('--p', clamped);
+      $('#fk-marker').style.left = clamped + '%';
+    }
+    setText($('#rd-grade'), has ? Math.max(0, Math.round(m.grade * 10) / 10).toFixed(1) : dash);
+    setText($('#rd-avgword'), m.words ? m.avgWord.toFixed(1) : dash);
+    setText($('#rd-longest'), m.words ? m.longest : dash);
+    $('#rd-longest').title = m.longest;
+    setText($('#rd-longest-n'), m.words ? m.longestLen + ' ' + plural(m.longestLen, 'letter') : '\u00A0');
+    setText($('#rd-syll'), m.words ? fmt(m.syllables) : dash);
+    setText($('#rd-wps'), has ? m.wps.toFixed(1) : dash);
+    setText($('#rd-spw'), has ? m.spw.toFixed(2) : dash);
+  }
+
+  /* ---- Keyword cloud ---- */
+  function renderKeywords(m) {
+    var cloud = $('#cloud');
+    cloud.innerHTML = '';
+    if (!m.keywords.length) {
+      var p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = 'Start typing to see the words you use most.';
+      cloud.appendChild(p);
+      return;
+    }
+    var max = m.keywords[0][1], min = m.keywords[m.keywords.length - 1][1];
+    m.keywords.forEach(function (entry) {
+      var weight = max === min ? 0.5 : (entry[1] - min) / (max - min);
+      var span = document.createElement('span');
+      span.className = 'kw';
+      span.style.fontSize = (0.82 + weight * 0.62).toFixed(2) + 'rem';
+      span.style.setProperty('--w', weight.toFixed(2));
+      var density = m.words ? (entry[1] / m.words * 100).toFixed(1) : '0';
+      span.title = entry[1] + ' ' + plural(entry[1], 'use') + ' · ' + density + '% of words';
+      span.appendChild(document.createTextNode(entry[0] + ' '));
+      var b = document.createElement('b');
+      b.textContent = '×' + entry[1];
+      span.appendChild(b);
+      cloud.appendChild(span);
+    });
+  }
+
+  /* ---- Diagnostics ---- */
+  function renderChips(box, items) {
+    box.innerHTML = '';
+    var counts = new Map();
+    items.forEach(function (it) {
+      var k = it.text.toLowerCase().replace(/\s+/g, ' ');
+      counts.set(k, (counts.get(k) || 0) + 1);
+    });
+    var entries = Array.from(counts.entries()).sort(function (a, b) { return b[1] - a[1]; });
+    entries.slice(0, 6).forEach(function (e) {
+      var c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = e[0];
+      if (e[1] > 1) { var em = document.createElement('em'); em.textContent = '×' + e[1]; c.appendChild(em); }
+      box.appendChild(c);
+    });
+    if (entries.length > 6) {
+      var more = document.createElement('span');
+      more.className = 'chip'; more.textContent = '+' + (entries.length - 6) + ' more';
+      box.appendChild(more);
+    }
+  }
+  function buildTips(m, d) {
+    if (m.words < 15) return ['Write a little more (about 15+ words) to get tailored suggestions.'];
+    var tips = [], w = m.words;
+    if (d.adverbs.length / w > 0.04) tips.push('Lots of “-ly” adverbs — try stronger verbs instead of verb + adverb.');
+    if (d.fillers.length / w > 0.05) tips.push('Plenty of filler words — trimming them will tighten your prose.');
+    if (m.sentences && d.passive.length / m.sentences > 0.3) tips.push('Frequent passive voice — active voice is usually clearer and more direct.');
+    if (m.wps > 25) tips.push('Sentences average ' + m.wps.toFixed(0) + ' words — consider splitting a few of the longer ones.');
+    if (!tips.length) tips.push('Nice work — no obvious red flags. Clean, direct writing!');
+    return tips;
+  }
+  function renderDiagnostics(d, m) {
+    setText($('#dg-adv'), d.adverbs.length);
+    setText($('#dg-fill'), d.fillers.length);
+    setText($('#dg-pass'), d.passive.length);
+    renderChips($('#dg-adv-chips'), d.adverbs);
+    renderChips($('#dg-fill-chips'), d.fillers);
+    renderChips($('#dg-pass-chips'), d.passive);
+    var tipsBox = $('#dg-tips');
+    tipsBox.innerHTML = '';
+    buildTips(m, d).forEach(function (t) {
+      var p = document.createElement('p'); p.textContent = t; tipsBox.appendChild(p);
+    });
+  }
+
+  /* ---- Highlighted preview (debounced; guarded for very long texts) ---- */
+  var PREVIEW_LIMIT = 60000;
+  var previewTimer;
+  var LABELS = { adv: '-ly adverb', fill: 'Filler word / phrase', pass: 'Passive voice' };
+  function renderPreview() {
+    var box = $('#preview');
+    box.parentNode.hidden = false;
+    if (!state.preview) { box.hidden = true; return; }
+    box.hidden = false;
+    var text = ta.value;
+    if (!text.trim()) {
+      box.innerHTML = '<span class="empty">Your text will appear here with adverbs, filler words and passive voice highlighted.</span>';
+      return;
+    }
+    if (text.length > PREVIEW_LIMIT) {
+      box.innerHTML = '<span class="empty">Highlighted preview is paused for very long texts (over ' + fmt(PREVIEW_LIMIT) + ' characters). Counts above are still live.</span>';
+      return;
+    }
+    var ranges = diag.adverbs.concat(diag.fillers, diag.passive)
+      .sort(function (a, b) { return a.start - b.start || b.end - a.end; });
+    var html = '', pos = 0;
+    ranges.forEach(function (r) {
+      if (r.start < pos) return; // skip overlaps
+      html += esc(text.slice(pos, r.start));
+      html += '<mark class="hl hl-' + r.type + '" title="' + LABELS[r.type] + '">' + esc(text.slice(r.start, r.end)) + '</mark>';
+      pos = r.end;
+    });
+    html += esc(text.slice(pos));
+    box.innerHTML = html;
+  }
+  function schedulePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(renderPreview, 120);
+  }
+
+  /* =====================================================================
+     MASTER UPDATE (throttled to one run per frame)
+     ===================================================================== */
+  function update() {
+    var text = ta.value;
+    metrics = analyze(text);
+    diag = diagnose(text);
+    renderStats(metrics);
+    renderGoal(metrics);
+    renderPlatforms(metrics);
+    renderReadability(metrics);
+    renderKeywords(metrics);
+    renderDiagnostics(diag, metrics);
+    schedulePreview();
+  }
+  var raf = null;
+  function queueUpdate() {
+    if (raf !== null) return;
+    var run = function () { raf = null; update(); };
+    raf = (window.requestAnimationFrame || setTimeout)(run, 16);
+  }
+
+  /* =====================================================================
+     AUTO-SAVE (localStorage)
+     ===================================================================== */
+  var saveTimer;
+  function saveNow() {
+    clearTimeout(saveTimer);
+    var ok = store.set(KEYS.text, ta.value);
+    var s = els.saveStatus;
+    if (ok) {
+      s.classList.remove('off');
+      s.textContent = 'Draft saved · ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } else {
+      s.classList.add('off');
+      s.textContent = 'Auto-save unavailable (browser storage is blocked)';
+    }
+  }
+  function queueSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 300);
+  }
+
+  /* =====================================================================
+     EDITOR ACTIONS (with undo history)
+     ===================================================================== */
+  function pushHistory() {
+    history.push({ v: ta.value, s: ta.selectionStart, e: ta.selectionEnd });
+    if (history.length > 60) history.shift();
+    $('#b-undo').disabled = false;
+  }
+  function afterChange() { queueUpdate(); queueSave(); }
+
+  /* Apply a transform to the selection if there is one, otherwise to everything. */
+  function transform(label, fn) {
+    var v = ta.value;
+    if (!v.trim()) { toast('Type or paste some text first'); return; }
+    var s = ta.selectionStart, e = ta.selectionEnd;
+    var hasSel = e > s;
+    var src = hasSel ? v.slice(s, e) : v;
+    var out = fn(src);
+    if (out === src) { toast('Nothing to change'); return; }
+    pushHistory();
+    if (hasSel) {
+      ta.value = v.slice(0, s) + out + v.slice(e);
+      ta.setSelectionRange(s, s + out.length);
+    } else {
+      ta.value = out;
+    }
+    afterChange();
+    toast(label + (hasSel ? ' (selection)' : ''));
+  }
+  function replaceAll(newText, msg) {
+    pushHistory();
+    ta.value = newText;
+    ta.setSelectionRange(0, 0);
+    afterChange();
+    if (msg) toast(msg);
+  }
+  function undo() {
+    var h = history.pop();
+    if (!h) return;
+    ta.value = h.v;
+    try { ta.setSelectionRange(h.s, h.e); } catch (e) { /* ignore */ }
+    $('#b-undo').disabled = history.length === 0;
+    afterChange();
+    toast('Undone');
+  }
+  function copyText() {
+    var text = ta.value;
+    if (!text) { toast('Nothing to copy yet'); return; }
+    var fallback = function () {
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); toast('Copied to clipboard'); } catch (e) { toast('Copy failed — select the text and copy manually'); }
+      ta.setSelectionRange(text.length, text.length);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast('Copied to clipboard'); }, fallback);
+    } else fallback();
+  }
+
+  /* =====================================================================
+     EXPORT (.txt report)
+     ===================================================================== */
+  function buildReport() {
+    var cleaned = cleanSpaces(ta.value);
+    var m = analyze(cleaned), d = diagnose(cleaned);
+    var line = '='.repeat(56);
+    var L = [];
+    L.push(line, ' PASSAGE WORD COUNTER — REPORT', line);
+    L.push('Generated: ' + new Date().toLocaleString(), '');
+    L.push('STATISTICS', '----------');
+    L.push('Words:                    ' + fmt(m.words));
+    L.push('Characters (with spaces): ' + fmt(m.charsWith));
+    L.push('Characters (no spaces):   ' + fmt(m.charsNo));
+    L.push('Sentences:                ' + fmt(m.sentences));
+    L.push('Paragraphs:               ' + fmt(m.paragraphs));
+    L.push('Estimated reading time:   ' + formatDuration(m.readSecs) + ' (~' + WPM + ' wpm)', '');
+    L.push('READABILITY', '-----------');
+    if (m.ease !== null) {
+      L.push('Flesch Reading Ease:      ' + (Math.round(m.ease * 10) / 10) + ' (' + easeInfo(m.ease)[0] + ')');
+      L.push('Flesch–Kincaid Grade:     ' + Math.max(0, Math.round(m.grade * 10) / 10).toFixed(1));
+    } else {
+      L.push('Flesch scores:            not enough text');
+    }
+    L.push('Average word length:      ' + (m.words ? m.avgWord.toFixed(1) + ' letters' : '—'));
+    L.push('Longest word:             ' + (m.words ? m.longest + ' (' + m.longestLen + ' letters)' : '—'));
+    L.push('Estimated syllables:      ' + fmt(m.syllables));
+    L.push('Words per sentence:       ' + (m.sentences ? m.wps.toFixed(1) : '—'), '');
+    L.push('TOP KEYWORDS', '------------');
+    if (m.keywords.length) {
+      m.keywords.slice(0, 10).forEach(function (k) { L.push('  ' + k[0] + ' × ' + k[1]); });
+    } else L.push('  —');
+    L.push('', 'WRITING DIAGNOSTICS', '-------------------');
+    L.push('"-ly" adverbs:            ' + d.adverbs.length);
+    L.push('Filler words & phrases:   ' + d.fillers.length);
+    L.push('Passive voice:            ' + d.passive.length, '');
+    L.push('PLATFORM LIMITS', '---------------');
+    PLATFORMS.forEach(function (p) {
+      var diff = p.limit - m.charsWith;
+      L.push(p.name.padEnd(14) + fmt(m.charsWith) + ' / ' + fmt(p.limit) + (diff >= 0 ? '  (OK, ' + fmt(diff) + ' left)' : '  (OVER by ' + fmt(-diff) + ')'));
+    });
+    var target = Math.max(1, state.target);
+    var cur = state.unit === 'words' ? m.words : m.charsWith;
+    L.push('', 'GOAL', '----');
+    L.push(fmt(cur) + ' / ' + fmt(target) + ' ' + (state.unit === 'words' ? 'words' : 'characters') + ' (' + Math.floor(cur / target * 100) + '%)', '');
+    L.push(line, ' CLEANED TEXT', line, '', cleaned, '');
+    return L.join('\n');
+  }
+  function exportReport() {
+    if (!ta.value.trim()) { toast('Nothing to export yet'); return; }
+    var blob = new Blob([buildReport()], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var now = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var name = 'passage-report-' + now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + '.txt';
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    toast('Report downloaded');
+  }
+
+  /* =====================================================================
+     TEXT-TO-SPEECH (native speechSynthesis, chunked for long passages)
+     ===================================================================== */
+  var synth = ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) ? window.speechSynthesis : null;
+  var tts = { token: 0, speaking: false, keep: null, voices: [] };
+  var listenBtn = $('#b-listen');
+
+  function setSpeaking(on) {
+    tts.speaking = on;
+    listenBtn.classList.toggle('is-live', on);
+    listenBtn.classList.toggle('btn-primary', !on);
+    listenBtn.innerHTML = '<svg class="ico"><use href="' + (on ? '#i-stop' : '#i-volume') + '"/></svg><span>' + (on ? 'Stop' : 'Listen') + '</span>';
+  }
+  function chunkForSpeech(text) {
+    var chunks = [];
+    var push = function (s) { s = s.trim(); if (s) chunks.push(s); };
+    text.split(/\n+/).forEach(function (para) {
+      var sentences = para.replace(/\s+/g, ' ').trim().match(/.+?(?:[.!?…]+["'”’)\]]*(?=\s|$)|$)/g) || [];
+      var cur = '';
+      sentences.forEach(function (s) {
+        if (s.length > 200) {
+          push(cur); cur = '';
+          var part = '';
+          s.split(' ').forEach(function (w) {
+            if ((part + ' ' + w).length > 200) { push(part); part = w; } else part = part ? part + ' ' + w : w;
+          });
+          push(part);
+        } else if ((cur + s).length > 200) { push(cur); cur = s; }
+        else cur += s;
+      });
+      push(cur);
+    });
+    return chunks;
+  }
+  function currentVoice() {
+    var uri = $('#sel-voice').value;
+    for (var i = 0; i < tts.voices.length; i++) if (tts.voices[i].voiceURI === uri) return tts.voices[i];
+    return null;
+  }
+  function startSpeech() {
+    var text = ta.value.trim();
+    if (!text) { toast('Type or paste some text first'); return; }
+    synth.cancel();
+    var token = ++tts.token;
+    var chunks = chunkForSpeech(text), i = 0;
+    var next = function () {
+      if (token !== tts.token) return;
+      if (i >= chunks.length) { setSpeaking(false); return; }
+      var u = new SpeechSynthesisUtterance(chunks[i++]);
+      var v = currentVoice();
+      u.rate = parseFloat($('#sel-rate').value) || 1;
+      if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+      u.onend = next;
+      u.onerror = function (ev) {
+        if (token !== tts.token) return;
+        if (ev.error && ev.error !== 'canceled' && ev.error !== 'interrupted') toast('Speech playback failed');
+        setSpeaking(false);
+      };
+      tts.keep = u; // keep a reference so the utterance isn't garbage-collected mid-speech
+      synth.speak(u);
+    };
+    setSpeaking(true);
+    next();
+  }
+  function stopSpeech() {
+    tts.token++;
+    if (synth) synth.cancel();
+    setSpeaking(false);
+  }
+  function populateVoices() {
+    if (!synth) return;
+    var all = synth.getVoices() || [];
+    var en = all.filter(function (v) { return /^en([-_]|$)/i.test(v.lang); });
+    tts.voices = en.length ? en : all;
+    var sel = $('#sel-voice');
+    var saved = store.get(KEYS.voice, '');
+    sel.innerHTML = '';
+    tts.voices.forEach(function (v) {
+      var o = document.createElement('option');
+      o.value = v.voiceURI;
+      o.textContent = v.name.replace(/^(Microsoft|Google)\s+/i, '') + ' (' + v.lang + ')';
+      sel.appendChild(o);
+    });
+    if (saved && tts.voices.some(function (v) { return v.voiceURI === saved; })) sel.value = saved;
+    else {
+      var def = tts.voices.filter(function (v) { return v.default; })[0];
+      if (def) sel.value = def.voiceURI;
+    }
+    sel.hidden = tts.voices.length < 2;
+  }
+
+  /* =====================================================================
+     THEME
+     ===================================================================== */
+  function applyTheme(theme, persist) {
+    document.documentElement.setAttribute('data-theme', theme);
+    var sw = $('#theme-switch');
+    sw.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0d19' : '#f3f5fb');
+    if (persist) store.set(KEYS.theme, theme);
+  }
+
+  /* =====================================================================
+     EVENT WIRING
+     ===================================================================== */
+  ta.addEventListener('input', afterChange);
+
+  $('#b-upper').addEventListener('click', function () { transform('UPPERCASE applied', function (t) { return t.toUpperCase(); }); });
+  $('#b-lower').addEventListener('click', function () { transform('lowercase applied', function (t) { return t.toLowerCase(); }); });
+  $('#b-title').addEventListener('click', function () { transform('Title Case applied', toTitleCase); });
+  $('#b-sentence').addEventListener('click', function () { transform('Sentence case applied', toSentenceCase); });
+  $('#b-clean').addEventListener('click', function () { transform('Extra spaces cleaned', cleanSpaces); });
+  $('#b-flatten').addEventListener('click', function () { transform('Flattened to one paragraph', flatten); });
+
+  $('#b-undo').addEventListener('click', undo);
+  $('#b-copy').addEventListener('click', copyText);
+  $('#b-clear').addEventListener('click', function () {
+    if (!ta.value) { toast('Already empty'); return; }
+    replaceAll('', 'Cleared — press Undo to restore');
+  });
+  $('#b-sample').addEventListener('click', function () { replaceAll(SAMPLE, 'Sample text loaded'); });
+  $('#b-export').addEventListener('click', exportReport);
+
+  listenBtn.addEventListener('click', function () {
+    if (!synth) { toast('Text-to-speech is not supported in this browser'); return; }
+    if (tts.speaking) stopSpeech(); else startSpeech();
+  });
+  $('#sel-rate').addEventListener('change', function (e) { store.set(KEYS.rate, e.target.value); });
+  $('#sel-voice').addEventListener('change', function (e) { store.set(KEYS.voice, e.target.value); });
+  if (synth) {
+    populateVoices();
+    if (typeof synth.addEventListener === 'function') synth.addEventListener('voiceschanged', populateVoices);
+    else synth.onvoiceschanged = populateVoices;
+  } else {
+    listenBtn.disabled = true;
+    listenBtn.title = 'Text-to-speech is not supported in this browser';
+    $('#sel-rate').disabled = true;
+  }
+
+  $('#theme-switch').addEventListener('click', function () {
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next, true);
+  });
+
+  /* goal controls */
+  var goalInput = $('#goal-target');
+  goalInput.addEventListener('input', function () {
+    var n = parseInt(goalInput.value, 10);
+    if (n >= 1) { state.target = n; store.set(KEYS.goal, String(n)); if (metrics) renderGoal(metrics); }
+  });
+  goalInput.addEventListener('blur', function () {
+    if (!(parseInt(goalInput.value, 10) >= 1)) goalInput.value = state.target;
+  });
+  function setUnit(unit, persist) {
+    state.unit = unit;
+    $$('.seg button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-unit') === unit ? 'true' : 'false'); });
+    renderGoalPresets();
+    if (persist) store.set(KEYS.unit, unit);
+    if (metrics) renderGoal(metrics);
+  }
+  $$('.seg button').forEach(function (b) {
+    b.addEventListener('click', function () { setUnit(b.getAttribute('data-unit'), true); });
+  });
+
+  /* highlighted preview toggle */
+  $('#preview-toggle').addEventListener('change', function (e) {
+    state.preview = e.target.checked;
+    store.set(KEYS.preview, state.preview ? '1' : '0');
+    renderPreview();
+  });
+
+  /* flush draft + stop speech when leaving the page */
+  window.addEventListener('pagehide', function () { saveNow(); if (synth) synth.cancel(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') saveNow(); });
+
+  /* =====================================================================
+     INIT
+     ===================================================================== */
+  (function init() {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light', false);
+    buildPlatforms();
+
+    var goal = parseInt(store.get(KEYS.goal, '500'), 10);
+    state.target = goal >= 1 ? goal : 500;
+    goalInput.value = state.target;
+    setUnit(store.get(KEYS.unit, 'words') === 'chars' ? 'chars' : 'words', false);
+
+    state.preview = store.get(KEYS.preview, '1') !== '0';
+    $('#preview-toggle').checked = state.preview;
+
+    var rate = store.get(KEYS.rate, '1');
+    if (['0.75', '1', '1.25', '1.5'].indexOf(rate) > -1) $('#sel-rate').value = rate;
+
+    var saved = store.get(KEYS.text, '');
+    if (saved) {
+      ta.value = saved;
+      els.saveStatus.textContent = 'Draft restored from your last visit';
+    } else if (!store.ok) {
+      els.saveStatus.classList.add('off');
+      els.saveStatus.textContent = 'Auto-save unavailable (browser storage is blocked)';
+    }
+    setSpeaking(false);
+    update();
+    renderPreview();
+  })();
+})();
+</script>
+</body>
+</html>
